@@ -1,0 +1,488 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Tic Tac Toe Stars PRO</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box
+        }
+
+        body {
+            height: 100vh;
+            font-family: Arial;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background 0.6s ease;
+            background: #0f0f0f;
+        }
+
+        /* ===== ПРОФИЛЬ ===== */
+        #profileBox {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            background: #1c1c1c;
+            padding: 10px 15px;
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 0 0 15px #000;
+        }
+
+        /* ===== КНОПКА МАГАЗИНА ===== */
+        #shopBtn {
+            position: absolute;
+            top: 15px;
+            right: 170px;
+            padding: 8px 12px;
+            background: #333;
+            border: none;
+            color: white;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+            #shopBtn:hover {
+                background: #555
+            }
+
+        /* ===== МОДАЛКИ ===== */
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modalContent {
+            background: #1c1c1c;
+            width: 550px;
+            max-height: 80vh;
+            overflow: auto;
+            padding: 25px;
+            border-radius: 15px;
+        }
+
+        .closeBtn {
+            float: right;
+            cursor: pointer;
+        }
+
+        /* ===== ИСТОРИЯ ===== */
+        #matchHistoryBox {
+            position: absolute;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 220px;
+            background: #1c1c1c;
+            padding: 15px;
+            border-radius: 15px;
+            box-shadow: 0 0 15px #000;
+            max-height: 80vh;
+            overflow: auto;
+        }
+
+        .historyItem {
+            background: #111;
+            padding: 6px;
+            margin: 5px 0;
+            border-radius: 8px;
+            font-size: 13px;
+        }
+
+        /* ===== ИГРА ===== */
+        .board {
+            margin-top: 15px;
+            display: grid;
+            grid-template-columns: repeat(3,100px);
+            grid-template-rows: repeat(3,100px);
+            gap: 5px;
+        }
+
+        .cell {
+            background: #1e1e1e;
+            font-size: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+            .cell:hover {
+                background: #2a2a2a
+            }
+
+        button {
+            margin-top: 5px;
+            padding: 6px 12px;
+            background: #333;
+            border: none;
+            color: white;
+            cursor: pointer;
+            border-radius: 8px;
+        }
+
+            button:hover {
+                background: #555
+            }
+
+        .shopItem {
+            background: #111;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 10px;
+        }
+
+        .shopPreview {
+            height: 60px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- История матчей -->
+    <div id="matchHistoryBox">
+        <h3>Последние матчи</h3>
+        <div id="matchHistory"></div>
+    </div>
+
+    <!-- Магазин кнопка -->
+    <button id="shopBtn" onclick="openShop()">🛒 Магазин</button>
+
+    <!-- Профиль -->
+    <div id="profileBox" onclick="openProfile()">
+        <div id="userDisplay">👤 Игрок</div>
+        <div id="starsDisplay">⭐ 0</div>
+    </div>
+
+    <!-- ПРОФИЛЬ -->
+    <div id="profileModal" class="modal">
+        <div class="modalContent">
+            <div class="closeBtn" onclick="closeProfile()">✖</div>
+            <h2>Профиль</h2>
+
+            <p>Баланс: <span id="modalStars"></span></p>
+
+            <h3>История выводов</h3>
+            <div id="withdrawHistory"></div>
+
+            <button onclick="withdraw()" id="withdrawBtn">Вывести 100 ⭐</button>
+            <div id="withdrawTimer"></div>
+        </div>
+    </div>
+
+    <!-- МАГАЗИН -->
+    <div id="shopModal" class="modal">
+        <div class="modalContent">
+            <div class="closeBtn" onclick="closeShop()">✖</div>
+            <h2>Магазин фонов</h2>
+            <div id="shopItems"></div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>Крестики-Нолики</h2>
+        <div id="status">Твой ход (X)</div>
+        <div class="board" id="board"></div>
+        <button onclick="resetGame()">Новая игра</button>
+    </div>
+
+    <script>
+
+        /* ===== ДАННЫЕ ===== */
+        let board = ["", "", "", "", "", "", "", "", ""];
+        let gameOver = false;
+        let stars = 0;
+        let matchHistory = [];
+        let withdrawHistory = [];
+        let withdrawEndTime = null;
+
+        let ownedBackgrounds = ["default"];
+        let equippedBackground = "default";
+
+        const backgrounds = [
+            { id: "default", name: "Стандарт", price: 0, style: "#0f0f0f" },
+            { id: "sunset", name: "Закат", price: 50, style: "linear-gradient(135deg,#ff512f,#dd2476)" },
+            { id: "ocean", name: "Океан", price: 80, style: "linear-gradient(135deg,#2193b0,#6dd5ed)" },
+            { id: "neon", name: "Неон", price: 120, style: "linear-gradient(135deg,#0f0c29,#302b63,#24243e)" },
+            { id: "galaxy", name: "Галактика", price: 150, style: "radial-gradient(circle,#1e3c72,#2a5298,#000)" }
+        ];
+
+        /* ===== ЗАГРУЗКА ===== */
+        function loadData() {
+            stars = parseInt(localStorage.getItem("stars")) || 0;
+            matchHistory = JSON.parse(localStorage.getItem("matchHistory")) || [];
+            withdrawHistory = JSON.parse(localStorage.getItem("withdrawHistory")) || [];
+            withdrawEndTime = parseInt(localStorage.getItem("withdrawEndTime")) || null;
+            ownedBackgrounds = JSON.parse(localStorage.getItem("ownedBg")) || ["default"];
+            equippedBackground = localStorage.getItem("equippedBg") || "default";
+
+            applyBackground();
+            updateUI();
+            checkTimer();
+        }
+
+        /* ===== UI ===== */
+        function updateUI() {
+            document.getElementById("starsDisplay").innerText = "⭐ " + stars;
+            document.getElementById("modalStars").innerText = stars + " ⭐";
+
+            let mh = document.getElementById("matchHistory");
+            mh.innerHTML = "";
+            matchHistory.slice(-10).reverse().forEach(m => {
+                let div = document.createElement("div");
+                div.className = "historyItem";
+                div.innerText = m;
+                mh.appendChild(div);
+            });
+
+            let wh = document.getElementById("withdrawHistory");
+            wh.innerHTML = "";
+            withdrawHistory.slice(-10).reverse().forEach(w => {
+                let div = document.createElement("div");
+                div.className = "historyItem";
+                div.innerText = w;
+                wh.appendChild(div);
+            });
+        }
+
+        /* ===== ИИ УМНЫЙ НО НЕ ИДЕАЛЬНЫЙ ===== */
+        function aiMove() {
+
+            let bestScore = -Infinity;
+            let moves = [];
+
+            for (let i = 0; i < 9; i++) {
+                if (board[i] === "") {
+                    board[i] = "O";
+                    let score = minimax(board, false);
+                    board[i] = "";
+                    moves.push({ index: i, score });
+                    if (score > bestScore) bestScore = score;
+                }
+            }
+
+            let strongMoves = moves.filter(m => m.score >= bestScore - 1);
+            let move;
+
+            if (Math.random() < 0.3) {
+                move = strongMoves[Math.floor(Math.random() * strongMoves.length)].index;
+            } else {
+                move = moves.find(m => m.score === bestScore).index;
+            }
+
+            board[move] = "O";
+            createBoard();
+
+            if (checkWin("O")) { endGame("Поражение"); return; }
+            if (isDraw()) { endGame("Ничья"); }
+        }
+
+        function minimax(b, isMax) {
+            if (checkWinSim(b, "O")) return 10;
+            if (checkWinSim(b, "X")) return -10;
+            if (b.every(c => c !== "")) return 0;
+
+            if (isMax) {
+                let best = -Infinity;
+                for (let i = 0; i < 9; i++) {
+                    if (b[i] === "") {
+                        b[i] = "O";
+                        best = Math.max(best, minimax(b, false));
+                        b[i] = "";
+                    }
+                }
+                return best;
+            } else {
+                let best = Infinity;
+                for (let i = 0; i < 9; i++) {
+                    if (b[i] === "") {
+                        b[i] = "X";
+                        best = Math.min(best, minimax(b, true));
+                        b[i] = "";
+                    }
+                }
+                return best;
+            }
+        }
+
+        /* ===== ВЫВОД ===== */
+        function withdraw() {
+            if (stars < 100 || withdrawEndTime) return;
+
+            stars -= 100;
+            withdrawEndTime = Date.now() + 3 * 60 * 60 * 1000;
+
+            withdrawHistory.push("Запрос 100 ⭐ - " + new Date().toLocaleString());
+            saveData();
+            updateUI();
+            checkTimer();
+        }
+
+        function checkTimer() {
+            if (!withdrawEndTime) return;
+
+            const timerEl = document.getElementById("withdrawTimer");
+            const btn = document.getElementById("withdrawBtn");
+
+            function update() {
+                let diff = withdrawEndTime - Date.now();
+                if (diff <= 0) {
+                    withdrawEndTime = null;
+                    localStorage.removeItem("withdrawEndTime");
+                    timerEl.innerText = "";
+                    btn.disabled = false;
+                    return;
+                }
+                btn.disabled = true;
+                let h = Math.floor(diff / 1000 / 60 / 60);
+                let m = Math.floor((diff / 1000 / 60) % 60);
+                let s = Math.floor((diff / 1000) % 60);
+                timerEl.innerText = "Ожидание: " + h + "ч " + m + "м " + s + "с";
+                setTimeout(update, 1000);
+            }
+            update();
+        }
+
+        /* ===== МАГАЗИН ===== */
+        function openShop() {
+            document.getElementById("shopModal").style.display = "flex";
+            renderShop();
+        }
+        function closeShop() {
+            document.getElementById("shopModal").style.display = "none";
+        }
+
+        function renderShop() {
+            let container = document.getElementById("shopItems");
+            container.innerHTML = "";
+
+            backgrounds.forEach(bg => {
+                let div = document.createElement("div");
+                div.className = "shopItem";
+                div.innerHTML = `<div class="shopPreview" style="background:${bg.style}"></div>
+            <strong>${bg.name}</strong><br>Цена: ${bg.price} ⭐<br>`;
+
+                let btn = document.createElement("button");
+
+                if (ownedBackgrounds.includes(bg.id)) {
+                    btn.innerText = "Экипировать";
+                    btn.onclick = () => equipBackground(bg.id);
+                } else {
+                    btn.innerText = "Купить";
+                    btn.onclick = () => buyBackground(bg);
+                }
+
+                div.appendChild(btn);
+                container.appendChild(div);
+            });
+        }
+
+        function buyBackground(bg) {
+            if (stars < bg.price) return alert("Недостаточно ⭐");
+            stars -= bg.price;
+            ownedBackgrounds.push(bg.id);
+            saveData();
+            renderShop();
+            updateUI();
+        }
+
+        function equipBackground(id) {
+            equippedBackground = id;
+            applyBackground();
+            saveData();
+        }
+
+        function applyBackground() {
+            let bg = backgrounds.find(b => b.id === equippedBackground);
+            document.body.style.background = bg.style;
+        }
+
+        /* ===== ИГРА ===== */
+        function createBoard() {
+            const boardEl = document.getElementById("board");
+            boardEl.innerHTML = "";
+            board.forEach((cell, i) => {
+                let div = document.createElement("div");
+                div.className = "cell";
+                div.innerText = cell;
+                div.onclick = () => playerMove(i);
+                boardEl.appendChild(div);
+            });
+        }
+
+        function playerMove(i) {
+            if (board[i] !== "" || gameOver) return;
+            board[i] = "X";
+            createBoard();
+
+            if (checkWin("X")) {
+                stars += 15;
+                endGame("Победа");
+                return;
+            }
+
+            if (isDraw()) { endGame("Ничья"); return; }
+
+            setTimeout(aiMove, 300);
+        }
+
+        function endGame(result) {
+            gameOver = true;
+            document.getElementById("status").innerText = result;
+            matchHistory.push(result + " - " + new Date().toLocaleString());
+            saveData();
+            updateUI();
+        }
+
+        function checkWin(p) { return checkWinSim(board, p); }
+
+        function checkWinSim(b, p) {
+            const w = [[0, 1, 2], [3, 4, 5], [6, 7, 8],
+            [0, 3, 6], [1, 4, 7], [2, 5, 8],
+            [0, 4, 8], [2, 4, 6]];
+            return w.some(c => c.every(i => b[i] == p));
+        }
+
+        function isDraw() { return board.every(c => c !== ""); }
+
+        function resetGame() {
+            board = ["", "", "", "", "", "", "", "", ""];
+            gameOver = false;
+            document.getElementById("status").innerText = "Твой ход (X)";
+            createBoard();
+        }
+
+        function openProfile() {
+            document.getElementById("profileModal").style.display = "flex";
+        }
+        function closeProfile() {
+            document.getElementById("profileModal").style.display = "none";
+        }
+
+        function saveData() {
+            localStorage.setItem("stars", stars);
+            localStorage.setItem("matchHistory", JSON.stringify(matchHistory));
+            localStorage.setItem("withdrawHistory", JSON.stringify(withdrawHistory));
+            if (withdrawEndTime)
+                localStorage.setItem("withdrawEndTime", withdrawEndTime);
+            localStorage.setItem("ownedBg", JSON.stringify(ownedBackgrounds));
+            localStorage.setItem("equippedBg", equippedBackground);
+        }
+
+        createBoard();
+        loadData();
+
+    </script>
+</body>
+</html>
